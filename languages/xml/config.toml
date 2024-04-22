@@ -1,6 +1,6 @@
 name = "XML"
 grammar = "xml"
-path_suffixes = ["xml"]
+path_suffixes = ["xml", "svg"]
 brackets = [{ start = "<", end = ">", close = true, newline = true }]
 prettier_parser_name = "xml"
 prettier_plugins = ["prettier-plugin-xml"]
