@@ -1,2 +1,2 @@
-(start_tag ">" @end) @indent
-(self_closing_tag "/>" @end) @indent
+(STag ">" @end) @indent
+(EmptyElemTag "/>" @end) @indent
