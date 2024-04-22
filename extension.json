@@ -1,7 +1,7 @@
 {
   "name": "XML",
   "version": "0.0.1",
-  "authors": ["sweetppro", "d1y <chenhonzhou@gmail.com"],
+  "authors": ["sweetppro", "d1y <chenhonzhou@gmail.com>"],
   "description": "XML syntax highlighting for Zed",
   "repository": "https://github.com/sweetppro/zed-xml"
 }
