@@ -1,6 +1,6 @@
 name = "XML"
 grammar = "xml"
-path_suffixes = ["xml", "dtd", "svg", "entitlements", "plist", "storyboard", "xcprivacy", "xcscheme", "xcworkspacedata"]
+path_suffixes = ["xml", "dtd", "iml", "svg", "entitlements", "plist", "storyboard", "xcprivacy", "xcscheme", "xcworkspacedata"]
 brackets = [{ start = "<", end = ">", close = true, newline = true }]
 prettier_parser_name = "xml"
 prettier_plugins = ["prettier-plugin-xml"]
