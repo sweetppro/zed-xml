@@ -1,7 +1,7 @@
 id = "xml"
 name = "XML"
 description = "XML syntax support."
-version = "0.0.5"
+version = "0.0.6"
 schema_version = 1
 authors = ["sweetppro"]
 repository = "https://github.com/sweetppro/zed-xml"
