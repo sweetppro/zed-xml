@@ -8,5 +8,5 @@ repository = "https://github.com/sweetppro/zed-xml"
 
 [grammars.xml]
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
-commit = "96beba9f3e4156aaae64bb86997503b1ceb1283d"
+commit = "809266ed1694d64dedc168a18893cc254e3edf7e"
 path = "xml"
