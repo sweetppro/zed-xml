@@ -1,12 +1,12 @@
 id = "xml"
 name = "XML"
 description = "XML syntax support."
-version = "0.0.7"
+version = "0.0.8"
 schema_version = 1
 authors = ["sweetppro"]
 repository = "https://github.com/sweetppro/zed-xml"
 
 [grammars.xml]
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
-commit = "809266ed1694d64dedc168a18893cc254e3edf7e"
+commit = "4b64dd3a03ec002258d6268d712fd93716d6ab57"
 path = "xml"
