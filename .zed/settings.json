@@ -1,0 +1,12 @@
+{
+  "languages": {
+    "XML": {
+      "prettier": {
+        "allowed": true,
+        "plugins": ["@prettier/plugin-xml"]
+      },
+      "format_on_save": "off",
+      "formatter": "prettier"
+    }
+  }
+}

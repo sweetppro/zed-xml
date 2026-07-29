@@ -3,10 +3,17 @@ name = "XML"
 description = "XML syntax support."
 version = "0.1.1"
 schema_version = 1
-authors = ["sweetppro"]
+authors = ["sweetppro", "notpeter"]
 repository = "https://github.com/sweetppro/zed-xml"
 
 [grammars.xml]
 repository = "https://github.com/tree-sitter-grammars/tree-sitter-xml"
 commit = "5000ae8f22d11fbe93939b05c1e37cf21117162d"
 path = "xml"
+
+# Upstream: https://github.com/eclipse-lemminx/lemminx
+# Binaries: https://github.com/redhat-developer/vscode-xml
+[language_servers.lemminx]
+name = "lemminx"
+language = "XML"
+language_ids = { XML = "xml" }
