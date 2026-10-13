@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
 use zed::LanguageServerId;
-use zed_extension_api::{self as zed, Result};
+use zed_extension_api::{self as zed, settings::LspSettings, Result};
 
 mod lemminx_release;
 
@@ -179,10 +179,22 @@ impl zed::Extension for XmlExtension {
         language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<zed::Command> {
+        let binary = LspSettings::for_worktree(LS_NAME, worktree)
+            .ok()
+            .and_then(|settings| settings.binary);
+        let (path, args, env) = match binary {
+            Some(binary) => (binary.path, binary.arguments, binary.env),
+            None => (None, None, None),
+        };
+        let command = match path {
+            Some(path) => path,
+            None => self.language_server_binary_path(language_server_id, worktree)?,
+        };
+
         Ok(zed::Command {
-            command: self.language_server_binary_path(language_server_id, worktree)?,
-            args: Default::default(),
-            env: Default::default(),
+            command,
+            args: args.unwrap_or_default(),
+            env: env.unwrap_or_default().into_iter().collect(),
         })
     }
 }
