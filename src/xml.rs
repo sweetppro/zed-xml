@@ -2,7 +2,7 @@ use sha2::{Digest, Sha256};
 use std::fs;
 use std::io::Read;
 use zed::LanguageServerId;
-use zed_extension_api::{self as zed, settings::LspSettings, Result};
+use zed_extension_api::{self as zed, serde_json::Value, settings::LspSettings, Result};
 
 mod lemminx_release;
 
@@ -167,6 +167,74 @@ fn is_file(path: &str) -> bool {
     fs::metadata(path).is_ok_and(|stat| stat.is_file())
 }
 
+/// The `lsp.lemminx.settings` of the worktree, with project-relative paths made absolute.
+fn workspace_settings(worktree: &zed::Worktree) -> Value {
+    let mut settings = LspSettings::for_worktree(LS_NAME, worktree)
+        .ok()
+        .and_then(|settings| settings.settings)
+        .unwrap_or_else(|| Value::Object(Default::default()));
+    resolve_relative_paths(&mut settings, &worktree.root_path());
+    settings
+}
+
+/// `/x`, `\x`, `C:x` or a URI: anything LemMinX can open without knowing the project.
+fn is_absolute(path: &str) -> bool {
+    let bytes = path.as_bytes();
+    path.starts_with('/')
+        || path.starts_with('\\')
+        || path.contains("://")
+        || (bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
+}
+
+fn absolute(path: &str, root: &str) -> String {
+    if is_absolute(path) {
+        return path.to_string();
+    }
+    let root = root.trim_end_matches(['/', '\\']);
+    let relative = path.trim_start_matches("./");
+    format!("{root}/{relative}")
+}
+
+/// LemMinX resolves catalogs and associated schemas against its own working directory, not
+/// the project, so the VS Code client rewrites them first. This does the same, so a project's
+/// settings can say `schemas/catalog.xml` instead of a path that only exists on one machine.
+fn resolve_relative_paths(settings: &mut Value, root: &str) {
+    let Some(xml) = settings.get_mut("xml") else {
+        return;
+    };
+    if let Some(catalogs) = xml.get_mut("catalogs").and_then(Value::as_array_mut) {
+        for catalog in catalogs.iter_mut() {
+            if let Some(path) = catalog.as_str() {
+                *catalog = Value::String(absolute(path, root));
+            }
+        }
+    }
+    if let Some(associations) = xml
+        .get_mut("fileAssociations")
+        .and_then(Value::as_array_mut)
+    {
+        for association in associations.iter_mut() {
+            if let Some(system_id) = association.get_mut("systemId") {
+                if let Some(path) = system_id.as_str() {
+                    *system_id = Value::String(absolute(path, root));
+                }
+            }
+        }
+    }
+}
+
+/// LemMinX reads its settings at start-up from `initializationOptions.settings`.
+fn initialization_options(user: Option<Value>, settings: Value) -> Value {
+    let mut options = match user {
+        Some(Value::Object(map)) => Value::Object(map),
+        _ => Value::Object(Default::default()),
+    };
+    if let Value::Object(map) = &mut options {
+        map.entry("settings").or_insert(settings);
+    }
+    options
+}
+
 impl zed::Extension for XmlExtension {
     fn new() -> Self {
         Self {
@@ -197,6 +265,28 @@ impl zed::Extension for XmlExtension {
             env: env.unwrap_or_default().into_iter().collect(),
         })
     }
+
+    fn language_server_initialization_options(
+        &mut self,
+        _language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<Value>> {
+        let user = LspSettings::for_worktree(LS_NAME, worktree)
+            .ok()
+            .and_then(|settings| settings.initialization_options);
+        Ok(Some(initialization_options(
+            user,
+            workspace_settings(worktree),
+        )))
+    }
+
+    fn language_server_workspace_configuration(
+        &mut self,
+        _language_server_id: &LanguageServerId,
+        worktree: &zed::Worktree,
+    ) -> Result<Option<Value>> {
+        Ok(Some(workspace_settings(worktree)))
+    }
 }
 
 zed::register_extension!(XmlExtension);
@@ -204,6 +294,74 @@ zed::register_extension!(XmlExtension);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use zed_extension_api::serde_json::json;
+
+    #[test]
+    fn makes_project_paths_absolute_and_leaves_the_rest() {
+        let mut settings = json!({
+            "xml": {
+                "catalogs": ["schemas/catalog.xml", "./more.xml", "/etc/xml/catalog", "C:\\xml\\c.xml"],
+                "fileAssociations": [
+                    { "pattern": "**/*.xml", "systemId": "schemas/a.xsd" },
+                    { "pattern": "**/*.svg", "systemId": "https://example.com/svg.xsd" }
+                ],
+                "validation": { "enabled": true }
+            }
+        });
+        resolve_relative_paths(&mut settings, "/home/dev/project/");
+        assert_eq!(
+            settings["xml"]["catalogs"],
+            json!([
+                "/home/dev/project/schemas/catalog.xml",
+                "/home/dev/project/more.xml",
+                "/etc/xml/catalog",
+                "C:\\xml\\c.xml"
+            ])
+        );
+        assert_eq!(
+            settings["xml"]["fileAssociations"][0]["systemId"],
+            "/home/dev/project/schemas/a.xsd"
+        );
+        assert_eq!(
+            settings["xml"]["fileAssociations"][1]["systemId"],
+            "https://example.com/svg.xsd"
+        );
+        assert_eq!(settings["xml"]["validation"], json!({ "enabled": true }));
+    }
+
+    #[test]
+    fn joins_a_windows_root() {
+        assert_eq!(
+            absolute("schemas/catalog.xml", "C:\\dev\\project"),
+            "C:\\dev\\project/schemas/catalog.xml"
+        );
+    }
+
+    #[test]
+    fn leaves_settings_without_xml_alone() {
+        let mut settings = json!({ "other": ["a.xml"] });
+        resolve_relative_paths(&mut settings, "/root");
+        assert_eq!(settings, json!({ "other": ["a.xml"] }));
+    }
+
+    #[test]
+    fn passes_the_settings_in_the_initialization_options() {
+        let settings = json!({ "xml": { "catalogs": ["/c.xml"] } });
+        assert_eq!(
+            initialization_options(None, settings.clone()),
+            json!({ "settings": { "xml": { "catalogs": ["/c.xml"] } } })
+        );
+        assert_eq!(
+            initialization_options(Some(json!({ "extendedClientCapabilities": {} })), settings),
+            json!({ "extendedClientCapabilities": {}, "settings": { "xml": { "catalogs": ["/c.xml"] } } })
+        );
+    }
+
+    #[test]
+    fn keeps_settings_the_user_put_in_the_initialization_options() {
+        let user = json!({ "settings": { "xml": { "catalogs": ["/mine.xml"] } } });
+        assert_eq!(initialization_options(Some(user.clone()), json!({})), user);
+    }
 
     #[test]
     fn records_a_checksum_for_every_published_binary() {
