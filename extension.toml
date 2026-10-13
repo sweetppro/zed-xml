@@ -15,5 +15,5 @@ path = "xml"
 # Binaries: https://github.com/redhat-developer/vscode-xml
 [language_servers.lemminx]
 name = "lemminx"
-language = "XML"
+languages = ["XML"]
 language_ids = { XML = "xml" }
