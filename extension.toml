@@ -3,7 +3,7 @@ name = "XML"
 description = "XML syntax support."
 version = "0.1.1"
 schema_version = 1
-authors = ["sweetppro", "notpeter"]
+authors = ["sweetppro", "notpeter", "moilolon"]
 repository = "https://github.com/sweetppro/zed-xml"
 
 [grammars.xml]
