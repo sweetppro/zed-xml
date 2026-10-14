@@ -184,8 +184,21 @@ fn is_absolute(path: &str) -> bool {
     let bytes = path.as_bytes();
     path.starts_with('/')
         || path.starts_with('\\')
-        || path.contains("://")
+        || has_uri_scheme(path)
         || (bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
+}
+
+/// `file:/x`, `file:///x`, `https://x`, `urn:x`... A relative path can't have a colon before
+/// its first slash (RFC 3986, section 4.2), and a one-letter scheme is a Windows drive.
+fn has_uri_scheme(path: &str) -> bool {
+    let Some((scheme, _)) = path.split_once(':') else {
+        return false;
+    };
+    scheme.len() > 1
+        && scheme.starts_with(|c: char| c.is_ascii_alphabetic())
+        && scheme
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || matches!(c, '+' | '-' | '.'))
 }
 
 fn absolute(path: &str, root: &str) -> String {
@@ -329,6 +342,23 @@ mod tests {
             "https://example.com/svg.xsd"
         );
         assert_eq!(settings["xml"]["validation"], json!({ "enabled": true }));
+    }
+
+    #[test]
+    fn leaves_uris_alone() {
+        for uri in [
+            "file:/tmp/schema.xsd",
+            "file:/C:/schemas/config.xsd",
+            "file:///C:/schemas/config.xsd",
+            "https://example.com/a.xsd",
+            "urn:oasis:names:tc:entity:xmlns:xml:catalog",
+        ] {
+            assert_eq!(absolute(uri, "/root"), uri);
+        }
+        assert_eq!(
+            absolute("schemas/a:b.xsd", "/root"),
+            "/root/schemas/a:b.xsd"
+        );
     }
 
     #[test]
