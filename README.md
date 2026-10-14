@@ -104,6 +104,27 @@ Use `lemminx` language server to format documents:
   }
 ```
 
+Zed passes its indentation settings to LemMinX when formatting (`tabSize`, `insertSpaces`). Set them in an `.editorconfig`:
+
+```editorconfig
+root = true
+
+[*.xml]
+indent_style = space
+indent_size = 2
+```
+
+or with [`tab_size`](https://zed.dev/docs/reference/all-settings#tab-size) and [`hard_tabs`](https://zed.dev/docs/reference/all-settings#hard-tabs) in your Zed settings:
+
+```json
+  "languages": {
+    "XML": {
+      "tab_size": 2,
+      "hard_tabs": false
+    }
+  }
+```
+
 ### Manual formatting
 
 If you prefer, you can manually use `editor::FormatDocument` (`ctrl-shift-i` on Linux, `cmd-shift-i` on macOS) and disable automatic "Format on Save" with:
