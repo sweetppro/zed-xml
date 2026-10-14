@@ -89,15 +89,18 @@ fn install_binary(language_server_id: &LanguageServerId) -> Result<String> {
     )
     .map_err(|e| format!("failed to download file: {e}"))?;
 
-    let verified = sha256_file(&format!("{}/{}", download_dir, binary_file)).and_then(|actual| {
-        if actual == expected_sha256 {
-            Ok(())
-        } else {
-            Err(format!(
-                "checksum mismatch for {binary_file}: expected {expected_sha256}, got {actual}"
-            ))
-        }
-    });
+    let downloaded_path = format!("{}/{}", download_dir, binary_file);
+    let verified = sha256_file(&downloaded_path)
+        .and_then(|actual| {
+            if actual == expected_sha256 {
+                Ok(())
+            } else {
+                Err(format!(
+                    "checksum mismatch for {binary_file}: expected {expected_sha256}, got {actual}"
+                ))
+            }
+        })
+        .and_then(|()| zed::make_file_executable(&downloaded_path));
     if let Err(e) = verified {
         fs::remove_dir_all(&download_dir).ok();
         return Err(e);
@@ -106,7 +109,6 @@ fn install_binary(language_server_id: &LanguageServerId) -> Result<String> {
     fs::remove_dir_all(&version_dir).ok();
     fs::rename(&download_dir, &version_dir)
         .map_err(|e| format!("failed to move {download_dir} to {version_dir}: {e}"))?;
-    zed::make_file_executable(&binary_path)?;
 
     let entries = fs::read_dir(".").map_err(|e| format!("failed to list working directory {e}"))?;
     for entry in entries {
