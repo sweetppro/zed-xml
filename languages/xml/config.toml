@@ -5,4 +5,3 @@ first_line_pattern = '^<.*xml'
 block_comment = ["<!-- ", " -->"]
 brackets = [{ start = "<", end = ">", close = true, newline = true }]
 prettier_parser_name = "xml"
-prettier_plugins = ["@prettier/plugin-xml"]
