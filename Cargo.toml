@@ -1,0 +1,14 @@
+[package]
+name = "xml"
+version = "0.1.0"
+edition = "2021"
+publish = false
+license = "MIT"
+
+[lib]
+path = "src/xml.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+sha2 = "0.11"
+zed_extension_api = "0.7.0"
