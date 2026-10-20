@@ -238,6 +238,18 @@ fn resolve_relative_paths(settings: &mut Value, root: &str) {
     }
 }
 
+/// LemMinX reads its settings at start-up from `initializationOptions.settings`.
+fn initialization_options(user: Option<Value>, settings: Value) -> Value {
+    let mut options = match user {
+        Some(Value::Object(map)) => Value::Object(map),
+        _ => Value::Object(Default::default()),
+    };
+    if let Value::Object(map) = &mut options {
+        map.entry("settings").or_insert(settings);
+    }
+    options
+}
+
 impl zed::Extension for XmlExtension {
     fn new() -> Self {
         Self {
@@ -274,12 +286,13 @@ impl zed::Extension for XmlExtension {
         _language_server_id: &LanguageServerId,
         worktree: &zed::Worktree,
     ) -> Result<Option<Value>> {
-        // LemMinX reads its settings at start-up from `initializationOptions.settings`, and
-        // afterwards only from `workspace/didChangeConfiguration`. Zed merges the user's
-        // `initialization_options` on top of these.
-        Ok(Some(zed::serde_json::json!({
-            "settings": workspace_settings(worktree)
-        })))
+        let user = LspSettings::for_worktree(LS_NAME, worktree)
+            .ok()
+            .and_then(|settings| settings.initialization_options);
+        Ok(Some(initialization_options(
+            user,
+            workspace_settings(worktree),
+        )))
     }
 
     fn language_server_workspace_configuration(
@@ -361,6 +374,25 @@ mod tests {
         let mut settings = json!({ "other": ["a.xml"] });
         resolve_relative_paths(&mut settings, "/root");
         assert_eq!(settings, json!({ "other": ["a.xml"] }));
+    }
+
+    #[test]
+    fn passes_the_settings_in_the_initialization_options() {
+        let settings = json!({ "xml": { "catalogs": ["/c.xml"] } });
+        assert_eq!(
+            initialization_options(None, settings.clone()),
+            json!({ "settings": { "xml": { "catalogs": ["/c.xml"] } } })
+        );
+        assert_eq!(
+            initialization_options(Some(json!({ "extendedClientCapabilities": {} })), settings),
+            json!({ "extendedClientCapabilities": {}, "settings": { "xml": { "catalogs": ["/c.xml"] } } })
+        );
+    }
+
+    #[test]
+    fn keeps_settings_the_user_put_in_the_initialization_options() {
+        let user = json!({ "settings": { "xml": { "catalogs": ["/mine.xml"] } } });
+        assert_eq!(initialization_options(Some(user.clone()), json!({})), user);
     }
 
     #[test]
